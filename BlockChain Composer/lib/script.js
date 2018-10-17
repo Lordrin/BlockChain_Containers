@@ -16,111 +16,112 @@
 
 // MANUFACTURER FUNCTIONS
 /**
- * Place an order for a vehicle
- * @param {org.acme.vehicle_network.PlaceOrder} placeOrder - the PlaceOrder transaction
+ * Place an request for a container
+ * @param {org.acme.container_network.PlaceRequest} placeRequest - the PlaceRequest transaction
  * @transaction
  */
-async function placeOrder(orderRequest) { // eslint-disable-line no-unused-vars
-    console.log('placeOrder');
+async function placeRequest(requestRequest) { // eslint-disable-line no-unused-vars
+    console.log('placeRequest');
 
     const factory = getFactory();
-    const namespace = 'org.acme.vehicle_network';
+    const namespace = 'org.acme.container_network';
 
-    const order = factory.newResource(namespace, 'Order', orderRequest.orderId);
-    order.vehicleDetails = orderRequest.vehicleDetails;
-    order.orderStatus = 'PLACED';
-    order.orderer = factory.newRelationship(namespace, 'Person', orderRequest.orderer.getIdentifier());
-    order.options = orderRequest.options;
+    const request = factory.newResource(namespace, 'Request', requestRequest.requestId);
+    request.containerDetails = requestRequest.containerDetails;
+    request.requestStatus = 'PLACED';
+    request.requester = factory.newRelationship(namespace, 'Producer', requestRequest.requester.getIdentifier());
+    request.options = requestRequest.options;
 
-    // save the order
-    const assetRegistry = await getAssetRegistry(order.getFullyQualifiedType());
-    await assetRegistry.add(order);
+    // save the request
+    const assetRegistry = await getAssetRegistry(request.getFullyQualifiedType());
+    await assetRegistry.add(request);
 
     // emit the event
-    const placeOrderEvent = factory.newEvent(namespace, 'PlaceOrderEvent');
-    placeOrderEvent.orderId = order.orderId;
-    placeOrderEvent.vehicleDetails = order.vehicleDetails;
-    placeOrderEvent.options = order.options;
-    placeOrderEvent.orderer = order.orderer;
-    emit(placeOrderEvent);
+    const placeRequestEvent = factory.newEvent(namespace, 'PlaceRequestEvent');
+    placeRequestEvent.requestId = request.requestId;
+    placeRequestEvent.containerDetails = request.containerDetails;
+    placeRequestEvent.location = request.location;
+    placeRequestEvent.requester = request.requester;
+    emit(placeRequestEvent);
 }
 
 /**
- * Update the status of an order
- * @param {org.acme.vehicle_network.UpdateOrderStatus} updateOrderStatus - the UpdateOrderStatus transaction
+ * Update the status of an request
+ * @param {org.acme.container_network.UpdateRequestStatus} updateRequestStatus - the UpdateRequestStatus transaction
  * @transaction
  */
-async function updateOrderStatus(updateOrderRequest) { // eslint-disable-line no-unused-vars
-    console.log('updateOrderStatus');
+async function updateRequestStatus(updateRequest) { // eslint-disable-line no-unused-vars
+    console.log('updateRequestStatus');
 
     const factory = getFactory();
-    const namespace = 'org.acme.vehicle_network';
+    const namespace = 'org.acme.container_network';
 
-    // get vehicle registry
-    const vehicleRegistry = await getAssetRegistry(namespace + '.Vehicle');
-    if (updateOrderRequest.orderStatus === 'VIN_ASSIGNED') {
-        if (!updateOrderRequest.vin) {
+    // get container registry
+    const containerRegistry = await getAssetRegistry(namespace + '.Container');
+    if (updateRequest.requestStatus === 'VIN_ASSIGNED') {
+        if (!updateRequest.vin) {
             throw new Error('Value for VIN was expected');
         }
-        // create a vehicle
-        const vehicle = factory.newResource(namespace, 'Vehicle', updateOrderRequest.vin );
-        vehicle.vehicleDetails = updateOrderRequest.order.vehicleDetails;
-        vehicle.vehicleStatus = 'OFF_THE_ROAD';
-        await vehicleRegistry.add(vehicle);
-    } else if(updateOrderRequest.orderStatus === 'OWNER_ASSIGNED') {
-        if (!updateOrderRequest.vin) {
+        // create a container
+        const container = factory.newResource(namespace, 'Container', updateRequest.vin );
+        container.containerDetails = updateRequest.request.containerDetails;
+        container.containerStatus = 'AVAILABLE';
+        await containerRegistry.add(container);
+    } else if(updateRequest.requestStatus === 'TRANSPORTER_ASSIGNED') {
+        if (!updateRequest.vin) {
             throw new Error('Value for VIN was expected');
         }
 
-        // assign the owner of the vehicle to be the person who placed the order
-        const vehicle = await vehicleRegistry.get(updateOrderRequest.vin);
-        vehicle.vehicleStatus = 'ACTIVE';
-        vehicle.owner = factory.newRelationship(namespace, 'Person', updateOrderRequest.order.orderer.username);
-        await vehicleRegistry.update(vehicle);
+        // assign the owner of the container to be the producer who placed the request
+        const container = await containerRegistry.get(updateRequest.vin);
+        container.containerStatus = 'ACTIVE';
+        // TODO owner aanpassen
+        container.owner = factory.newRelationship(namespace, 'Transporter', updateRequest.request.requester.username);
+        await containerRegistry.update(container);
     }
 
-    // update the order
-    const order = updateOrderRequest.order;
-    order.orderStatus = updateOrderRequest.orderStatus;
-    const orderRegistry = await getAssetRegistry(namespace + '.Order');
-    await orderRegistry.update(order);
+    // update the request
+    const request = updateRequest.request;
+    request.requestStatus = updateRequest.requestStatus;
+    const requestRegistry = await getAssetRegistry(namespace + '.Request');
+    await requestRegistry.update(request);
 
     // emit the event
-    const updateOrderStatusEvent = factory.newEvent(namespace, 'UpdateOrderStatusEvent');
-    updateOrderStatusEvent.orderStatus = updateOrderRequest.order.orderStatus;
-    updateOrderStatusEvent.order = updateOrderRequest.order;
-    emit(updateOrderStatusEvent);
+    const updateRequestStatusEvent = factory.newEvent(namespace, 'UpdateRequestStatusEvent');
+    updateRequestStatusEvent.requestStatus = updateRequest.request.requestStatus;
+    updateRequestStatusEvent.request = updateRequest.request;
+    emit(updateRequestStatusEvent);
 }
 
 // DEMO SETUP FUNCTIONS
 /**
  * Create the participants to use in the demo
- * @param {org.acme.vehicle_network.SetupDemo} setupDemo - the SetupDemo transaction
+ * @param {org.acme.container_network.SetupDemo} setupDemo - the SetupDemo transaction
  * @transaction
  */
 async function setupDemo() { // eslint-disable-line no-unused-vars
     console.log('setupDemo');
 
     const factory = getFactory();
-    const namespace = 'org.acme.vehicle_network';
+    const namespace = 'org.acme.container_network';
 
     let people = ['Paul', 'Andy', 'Hannah', 'Sam', 'Caroline', 'Matt', 'Fenglian', 'Mark', 'James', 'Dave', 'Rob', 'Kai', 'Ellis', 'LesleyAnn'];
     let manufacturers;
 
-    const vehicles = {
+    const containers = {
         'Arium': {
             'Nova': [
                 {
                     'vin': 'ea290d9f5a6833a65',
                     'colour': 'Royal Purple',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 }
             ],
             'Nebula': [
                 {
                     'vin': '39fd242c2bbe80f11',
                     'colour': 'Statement Blue',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 }
             ]
         },
@@ -129,34 +130,34 @@ async function setupDemo() { // eslint-disable-line no-unused-vars
                 {
                     'vin': '835125e50bca37ca1',
                     'colour': 'Black',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': '0812e6d8d486e0464',
                     'colour': 'Red',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': 'c4aa418f26d4a0403',
                     'colour': 'Silver',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 }
             ],
             'Pluto': [
                 {
                     'vin': '7382fbfc083f696e5',
                     'colour': 'White',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': '01a9cd3f8f5db5ef7',
                     'colour': 'Green',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': '97f305df4c2881e71',
                     'colour': 'Grey',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 }
             ]
         },
@@ -165,41 +166,41 @@ async function setupDemo() { // eslint-disable-line no-unused-vars
                 {
                     'vin': 'af462063fb901d0e6',
                     'colour': 'Red',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': '3ff3395ecfd38f787',
                     'colour': 'White',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': 'de701fcf2a78d8086',
                     'colour': 'Silver',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 }
             ],
             'Rancher': [
                 {
                     'vin': '2fcdd7b5131e81fd0',
                     'colour': 'Blue',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 },
                 {
                     'vin': '79540e5384c970321',
                     'colour': 'White',
-                    'vehicleStatus': 'ACTIVE'
+                    'containerStatus': 'ACTIVE'
                 }
             ]
         }
     };
 
-    // convert array names of people to be array of participant resources of type Person with identifier of that name
-    people = people.map(function (person) {
-        return factory.newResource(namespace, 'Person', person);
+    // convert array names of people to be array of participant resources of type Producer with identifier of that name
+    people = people.map(function (producer) {
+        return factory.newResource(namespace, 'Producer', producer);
     });
 
-    // create array of Manufacturer particpant resources identified by the top level keys in vehicles const
-    manufacturers = Object.keys(vehicles).map(function (manufacturer) {
+    // create array of Manufacturer particpant resources identified by the top level keys in containers const
+    manufacturers = Object.keys(containers).map(function (manufacturer) {
         const manufacturerResource = factory.newResource(namespace, 'Manufacturer', manufacturer);
         manufacturerResource.name = manufacturer;
         return manufacturerResource;
@@ -217,29 +218,29 @@ async function setupDemo() { // eslint-disable-line no-unused-vars
     const manufacturerRegistry = await getParticipantRegistry(namespace + '.Manufacturer');
     await manufacturerRegistry.addAll(manufacturers);
 
-    // add the persons
-    const personRegistry = await getParticipantRegistry(namespace + '.Person');
-    await personRegistry.addAll(people);
+    // add the producers
+    const producerRegistry = await getParticipantRegistry(namespace + '.Producer');
+    await producerRegistry.addAll(people);
 
-    // add the vehicles
-    const vehicleRegistry = await getAssetRegistry(namespace + '.Vehicle');
-    const vehicleResources = [];
+    // add the containers
+    const containerRegistry = await getAssetRegistry(namespace + '.Container');
+    const containerResources = [];
 
-    for (const manufacturer in vehicles) {
-        for (const model in vehicles[manufacturer]) {
-            const vehicconstemplatesForModel = vehicles[manufacturer][model];
+    for (const manufacturer in containers) {
+        for (const model in containers[manufacturer]) {
+            const vehicconstemplatesForModel = containers[manufacturer][model];
             vehicconstemplatesForModel.forEach(function(vehicconstemplate) {
-                const vehicle = factory.newResource(namespace, 'Vehicle', vehicconstemplate.vin);
-                vehicle.owner = people[vehicleResources.length+1];
-                vehicle.vehicleStatus = vehicconstemplate.vehicleStatus;
-                vehicle.vehicleDetails = factory.newConcept(namespace, 'VehicleDetails');
-                vehicle.vehicleDetails.make = factory.newResource(namespace, 'Manufacturer', manufacturer);
-                vehicle.vehicleDetails.modelType = model;
-                vehicle.vehicleDetails.colour = vehicconstemplate.colour;
+                const container = factory.newResource(namespace, 'Container', vehicconstemplate.vin);
+                container.owner = people[containerResources.length+1];
+                container.containerStatus = vehicconstemplate.containerStatus;
+                container.containerDetails = factory.newConcept(namespace, 'ContainerDetails');
+                container.containerDetails.make = factory.newResource(namespace, 'Manufacturer', manufacturer);
+                container.containerDetails.modelType = model;
+                container.containerDetails.colour = vehicconstemplate.colour;
 
-                vehicleResources.push(vehicle);
+                containerResources.push(container);
             });
         }
     }
-    await vehicleRegistry.addAll(vehicleResources);
+    await containerRegistry.addAll(containerResources);
 }

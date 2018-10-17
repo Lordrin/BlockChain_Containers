@@ -25,8 +25,8 @@ concept ContainerDetails {
   o Long max_weight
 }
 
-asset Container identified by vin {
-  o String vin
+asset Container identified by id {
+  o String id
   o ContainerDetails containerDetails
   o ContainerStatus containerStatus
   --> Transporter owner optional
@@ -49,6 +49,7 @@ enum ContainerStatus {
 }
 enum RequestStatus {
   o PLACED
+  
   o SCHEDULED_FOR_PICKUP
   o TRANSPORTER_ASSIGNED
   o DELIVERED
