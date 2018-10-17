@@ -1,0 +1,122 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * New model file
+ */
+
+namespace org.acme.container_network
+
+// BASE DEFINTIONS
+
+concept ContainerDetails {
+  o Long volume
+  o Long max_weight
+}
+
+asset Container identified by vin {
+  o String vin
+  o ContainerDetails containerDetails
+  o ContainerStatus containerStatus
+  --> Transporter owner optional
+}
+
+abstract participant Company identified by companyId {
+  o String companyId
+  o String name
+}
+
+participant Producer extends Company {
+}
+
+participant Transporter extends Company{
+}
+
+enum ContainerStatus {
+  o AVAILABLE
+  o IN_USE
+}
+enum RequestStatus {
+  o PLACED
+  o SCHEDULED_FOR_PICKUP
+  o TRANSPORTER_ASSIGNED
+  o DELIVERED
+}
+
+concept Location {
+  o String location
+  o String[] Destinations
+}
+
+asset Request identified by requestId {
+  o String requestId
+  o ContainerDetails containerDetails
+  o RequestStatus requestStatus
+  o Location location
+  --> Producer requester
+}
+
+transaction PlaceRequest {
+  o String requestId
+  o ContainerDetails containerDetails
+  o Location location
+  --> Producer requester
+}
+
+event PlaceRequestEvent {
+  o String requestId
+  o ContainerDetails containerDetails
+  o Location location
+  --> Producer requester
+}
+
+transaction UpdateRequestStatus {
+  o RequestStatus requestStatus
+  --> Request request
+}
+
+event UpdateRequestStatusEvent {
+  o RequestStatus requestStatus
+  o Request request
+}
+
+asset Shipment identified by shipmentId {
+  o String shipmentId
+  o Long weight
+  // make weight a transaction
+  o Long volume
+  o Location route
+  --> Transporter transporter
+}
+abstract transaction ShipmentTransaction {
+  --> Shipment shipment
+}
+
+
+
+// transaction UpdateRoute extends ShipmentTransaction {
+//  o Location location
+//}
+
+//transaction ShipmentReceived extends ShipmentTransaction {
+//}
+
+
+// REGULATOR DEFINITIONS
+participant Regulator extends Company {
+}
+
+// DEMO SPECIFIC DEFINITIONS
+transaction SetupDemo {
+}
